@@ -1,0 +1,9 @@
+.env
+.git
+.gitignore
+bin/
+obj/
+media/**
+Backups/**
+reference_prototype.html
+*.zip

@@ -1,0 +1,3 @@
+@model List<Customer>
+@{ ViewData["Title"] = "Customer register"; }
+<div class="section-head"><div><h1>Customer / Client register</h1><p class="subheading">Clients and billing identity details.</p></div><a asp-action="Create" class="button button-primary">+ Add customer</a></div><div class="card"><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Code</th><th>GSTIN</th><th>Billing address</th><th>Contact</th></tr></thead><tbody>@foreach(var c in Model){<tr><td><strong>@c.Name</strong></td><td>@c.Code</td><td>@c.GSTIN</td><td>@c.BillingAddress</td><td>@c.ContactEmail<div class="muted small">@c.ContactPhone</div></td></tr>}</tbody></table></div></div>

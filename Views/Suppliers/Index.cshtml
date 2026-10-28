@@ -1,0 +1,3 @@
+@model List<Supplier>
+@{ ViewData["Title"] = "Supplier register"; }
+<div class="section-head"><div><h1>Supplier register</h1><p class="subheading">Supplier contacts, GST identifiers and purchasing references.</p></div><a asp-action="Create" class="button button-primary">+ Add supplier</a></div><div class="card"><div class="table-wrap"><table><thead><tr><th>Supplier</th><th>Code</th><th>Contact</th><th>Email</th><th>GSTIN</th><th>Address</th></tr></thead><tbody>@foreach(var s in Model){<tr><td><strong>@s.Name</strong></td><td>@s.Code</td><td>@s.ContactPerson<div class="muted small">@s.Phone</div></td><td>@s.Email</td><td>@s.GSTIN</td><td>@s.Address</td></tr>}</tbody></table></div></div>

@@ -1,0 +1,11 @@
+.env
+bin/
+obj/
+.vs/
+.idea/
+media/**
+!media/.gitkeep
+Backups/**
+!Backups/.gitkeep
+*.user
+*.suo

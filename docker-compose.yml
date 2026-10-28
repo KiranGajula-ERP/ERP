@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-auditflow}
+      POSTGRES_USER: ${POSTGRES_USER:-auditflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env before starting AuditFlow}
+    volumes:
+      - auditflow-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    # Do not expose PostgreSQL outside the Docker network.
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      Web__EnableHttpsRedirection: "false"
+      ConnectionStrings__AuditFlow: Host=db;Port=5432;Database=${POSTGRES_DB:-auditflow};Username=${POSTGRES_USER:-auditflow};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env};Timeout=15;Command Timeout=30
+      Storage__RootPath: /app/media
+      AUDITFLOW_BOOTSTRAP_ADMIN_USER: ${AUDITFLOW_BOOTSTRAP_ADMIN_USER:-auditadmin}
+      AUDITFLOW_BOOTSTRAP_ADMIN_PASSWORD: ${AUDITFLOW_BOOTSTRAP_ADMIN_PASSWORD:?Set AUDITFLOW_BOOTSTRAP_ADMIN_PASSWORD in .env before starting AuditFlow}
+      AUDITFLOW_BOOTSTRAP_ADMIN_EMAIL: ${AUDITFLOW_BOOTSTRAP_ADMIN_EMAIL:-}
+    ports:
+      - "${AUDITFLOW_HTTP_PORT:-8000}:8080"
+    volumes:
+      - ./media:/app/media
+
+volumes:
+  auditflow-db-data:

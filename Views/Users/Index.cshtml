@@ -1,0 +1,4 @@
+@model List<AppUser>
+@{ ViewData["Title"] = "User management"; }
+<div class="section-head"><div><h1>User management</h1><p class="subheading">Create named logins. Users may have different role and tower assignments.</p></div><div class="btn-row"><a class="button button-light" asp-action="Assign">Project assignments</a><a class="button button-primary" asp-action="Create">+ Create user</a></div></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>User</th><th>Username</th><th>Primary role</th><th>Email</th><th>Status</th></tr></thead><tbody>@foreach(var u in Model){<tr><td><strong>@u.DisplayName</strong></td><td>@u.UserName</td><td><span class="tag tag-blue">@AppRoles.Label(u.Role)</span></td><td>@u.Email</td><td><span class="tag @(u.IsActive?"tag-green":"tag-red")">@(u.IsActive?"Active":"Inactive")</span></td></tr>}</tbody></table></div></div>

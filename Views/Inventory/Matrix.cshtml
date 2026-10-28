@@ -1,0 +1,75 @@
+@model StockMatrixViewModel
+@{
+    ViewData["Title"] = Model.Kind switch { "received" => "Received Stock Register", "issued" => "Issued Stock Register", "wastage" => "Wastage Register", _ => "Stock Movement Details" };
+    var projects = ViewBag.Projects as List<Project> ?? [];
+    bool company = (bool?)ViewBag.Company ?? false;
+    var kindLabel = Model.Kind switch { "received" => "Received Stock Register", "issued" => "Issued Stock Register", "wastage" => "Wastage movements", _ => "All stock movements" };
+    var documentPages = Math.Max(1, (int)Math.Ceiling(Model.TotalCount / (double)Model.PageSize));
+    var materialPages = Math.Max(1, (int)Math.Ceiling(Model.MaterialTotalCount / (double)Model.MaterialPageSize));
+}
+<div class="section-head">
+    <div><h1>@ViewData["Title"]</h1><p class="subheading">@Model.ProjectName@if(!string.IsNullOrWhiteSpace(Model.ItemName)){<text> · Material filter: <strong>@Model.ItemName</strong></text>}</p></div>
+    <div class="btn-row">@if(company){<a class="button button-light" asp-action="Company">Back to central stock</a>}else{<a class="button button-light" asp-action="Index" asp-route-projectId="@Model.ProjectId">Back to inventory</a>}<a class="button button-light" asp-controller="Documents" asp-action="Index" asp-route-projectId="@Model.ProjectId">Document register</a></div>
+</div>
+<div class="card">
+    <form method="get" class="filters">
+        <input type="hidden" name="kind" value="@Model.Kind" /><input type="hidden" name="company" value="@company" />
+        <div class="field"><label>Project</label><select name="projectId"><option value="">All assigned projects</option>@foreach(var p in projects){<option value="@p.Id" selected="@(Model.ProjectId==p.Id)">@p.Name</option>}</select></div>
+        @if (Model.ItemId.HasValue) { <input type="hidden" name="itemId" value="@Model.ItemId" /> }
+        <button class="button button-primary" type="submit">Apply</button>
+        <a class="button button-light" asp-action="Matrix" asp-route-kind="@Model.Kind" asp-route-projectId="@Model.ProjectId" asp-route-company="@company">Clear material filter</a>
+    </form>
+    @if (Model.MatrixMode)
+    {
+        <div class="card-header"><div><h2>@kindLabel</h2><p class="muted small">Spreadsheet-style view: materials run down the left and receipt/issue documents run across the top. Select a document reference to open its source record.</p></div><span class="tag">@Model.TotalCount transactions</span></div>
+        @if (!Model.ItemId.HasValue) { <div class="alert alert-info">Showing transaction page @Model.Page of @documentPages (20 documents per page) and material page @Model.MaterialPage of @materialPages (100 materials per page). Page totals apply only to the visible document columns.</div> }
+        <div class="matrix-scroll"><table class="register-matrix">
+            <thead>
+                <tr><th class="matrix-sticky">S.No</th><th class="matrix-sticky material-col">Material / Item</th><th class="matrix-sticky unit-col">Units</th>
+                    @foreach(var m in Model.Movements)
+                    {
+                        Model.ReceiptDetails.TryGetValue(m.ReferenceId ?? -1, out var grn);
+                        Model.IndentDetails.TryGetValue(m.ReferenceId ?? -1, out var indent);
+                        <th class="transaction-heading"><div class="transaction-date">@m.PostedAtUtc.ToLocalTime().ToString("dd-MMM-yyyy")</div>
+                            @if(m.ReferenceType == "GRN" && m.ReferenceId.HasValue){<a class="doc-link" asp-controller="Procurement" asp-action="GoodsReceiptDetails" asp-route-id="@m.ReferenceId">@m.ReferenceNumber</a>}
+                            else {<a class="doc-link" asp-action="MovementDetails" asp-route-id="@m.Id">@m.ReferenceNumber</a>}
+                            @if(grn is not null){<small>DC: @(grn.DeliveryChallan?.Number ?? "—")</small><small>Invoice: @(grn.SupplierInvoice?.InvoiceNumber ?? "—")</small><small>PO: @(grn.PurchaseOrder?.Number ?? "—")</small><small>Supplier: @(grn.PurchaseOrder?.Supplier?.Name ?? grn.SupplierInvoice?.Supplier?.Name ?? grn.DeliveryChallan?.Supplier?.Name ?? "—")</small>}
+                            @if(indent is not null){<small>Indent: <a class="doc-link" asp-controller="Indents" asp-action="Details" asp-route-id="@indent.Id">@indent.Number</a></small><small>Raised by: @(indent.RequestedBy?.DisplayName ?? "—")</small><small>Tower: @(indent.Tower?.Name ?? "General")</small>}
+                            <small>Store: @(m.StoreLocation?.Name ?? (m.ProjectId is null ? "Central Store" : "Project Store"))</small><small>Posted by: @(m.PostedBy?.DisplayName ?? "—")</small>
+                        </th>
+                    }
+                    <th class="total-col">Visible Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var rowIndex = 0; rowIndex < Model.Materials.Count; rowIndex++)
+                {
+                    var item = Model.Materials[rowIndex];
+                    var rowTotal = Model.Movements.Where(m => m.ItemId == item.Id).Sum(m => Math.Abs(m.QuantityDelta));
+                    <tr><td class="matrix-sticky">@((Model.MaterialPage - 1) * Model.MaterialPageSize + rowIndex + 1)</td><td class="matrix-sticky material-col"><strong>@item.Name</strong><small>@item.Code</small></td><td class="matrix-sticky unit-col">@item.Unit?.Name</td>
+                        @foreach(var m in Model.Movements){<td class="matrix-quantity">@(m.ItemId == item.Id ? Math.Abs(m.QuantityDelta).ToString("0.####") : "—")</td>}
+                        <td class="matrix-quantity total-col">@rowTotal.ToString("0.####")</td>
+                    </tr>
+                }
+            </tbody>
+        </table></div>
+        @if(!Model.Materials.Any()){<div class="empty-state"><strong>No materials found</strong>Post a verified GRN or a completed Indent issue, or clear the material filter.</div>}
+        <div class="pagination">
+            @if(Model.ItemId.HasValue){<span>One material · @Model.TotalCount matching transactions · 100 transactions per page</span>}
+            else{<span>Material rows @((Model.MaterialPage - 1) * Model.MaterialPageSize + 1)–@Math.Min(Model.MaterialPage * Model.MaterialPageSize, Model.MaterialTotalCount) of @Model.MaterialTotalCount</span>}
+            <div class="btn-row">
+                @if(Model.ItemId.HasValue){if(Model.Page>1){<a class="button button-light button-sm" asp-action="Matrix" asp-route-kind="@Model.Kind" asp-route-projectId="@Model.ProjectId" asp-route-itemId="@Model.ItemId" asp-route-company="@company" asp-route-page="@(Model.Page-1)">Older documents</a>}if(Model.Page<documentPages){<a class="button button-light button-sm" asp-action="Matrix" asp-route-kind="@Model.Kind" asp-route-projectId="@Model.ProjectId" asp-route-itemId="@Model.ItemId" asp-route-company="@company" asp-route-page="@(Model.Page+1)">More documents</a>}}
+                else{if(Model.MaterialPage>1){<a class="button button-light button-sm" asp-action="Matrix" asp-route-kind="@Model.Kind" asp-route-projectId="@Model.ProjectId" asp-route-company="@company" asp-route-page="@Model.Page" asp-route-materialPage="@(Model.MaterialPage-1)">Previous materials</a>}if(Model.MaterialPage<materialPages){<a class="button button-light button-sm" asp-action="Matrix" asp-route-kind="@Model.Kind" asp-route-projectId="@Model.ProjectId" asp-route-company="@company" asp-route-page="@Model.Page" asp-route-materialPage="@(Model.MaterialPage+1)">More materials</a>}if(Model.Page>1){<a class="button button-light button-sm" asp-action="Matrix" asp-route-kind="@Model.Kind" asp-route-projectId="@Model.ProjectId" asp-route-company="@company" asp-route-materialPage="@Model.MaterialPage" asp-route-page="@(Model.Page-1)">Previous documents</a>}if(Model.Page<documentPages){<a class="button button-light button-sm" asp-action="Matrix" asp-route-kind="@Model.Kind" asp-route-projectId="@Model.ProjectId" asp-route-company="@company" asp-route-materialPage="@Model.MaterialPage" asp-route-page="@(Model.Page+1)">Next documents</a>}}
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card-header"><h2>@kindLabel</h2><span class="tag">@Model.TotalCount records</span></div>
+        <div class="table-wrap"><table><thead><tr><th>Date / Time</th><th>Reference</th><th>Project</th><th>Store</th><th>Material</th><th>Movement</th><th class="number">Quantity change</th><th class="number">Unit cost</th><th>Posted by</th><th>Notes</th></tr></thead><tbody>
+        @foreach(var m in Model.Movements){<tr><td class="nowrap">@m.PostedAtUtc.ToLocalTime().ToString("dd-MMM-yyyy HH:mm")</td><td><a class="doc-link" asp-action="MovementDetails" asp-route-id="@m.Id">@m.ReferenceNumber</a><div class="muted small">@m.ReferenceType</div></td><td>@(m.Project?.Name ?? "Central Store")</td><td>@m.StoreLocation?.Name</td><td><strong>@m.Item?.Name</strong><div class="muted small">@m.Item?.Code</div></td><td><span class="tag @(m.QuantityDelta<0?"tag-red":"tag-green")">@m.MovementType</span></td><td class="number">@m.QuantityDelta.ToString("+0.####;-0.####;0")</td><td class="number">₹@m.UnitCost.ToString("N2")</td><td>@m.PostedBy?.DisplayName</td><td>@m.Notes</td></tr>}
+        </tbody></table></div>
+        @if(!Model.Movements.Any()){<div class="empty-state"><strong>No matching stock movements</strong>Clear the filter or post a valid transaction.</div>}
+        <div class="pagination"><span>Page @Model.Page · Showing up to @Model.PageSize movements</span><div class="btn-row">@if(Model.Page>1){<a class="button button-light button-sm" asp-action="Matrix" asp-route-kind="@Model.Kind" asp-route-projectId="@Model.ProjectId" asp-route-itemId="@Model.ItemId" asp-route-company="@company" asp-route-page="@(Model.Page-1)">Previous</a>}@if(Model.Page*Model.PageSize<Model.TotalCount){<a class="button button-light button-sm" asp-action="Matrix" asp-route-kind="@Model.Kind" asp-route-projectId="@Model.ProjectId" asp-route-itemId="@Model.ItemId" asp-route-company="@company" asp-route-page="@(Model.Page+1)">Next</a>}</div></div>
+    }
+</div>

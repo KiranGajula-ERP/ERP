@@ -1,0 +1,65 @@
+@using AuditFlow.Web.Models
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · AuditFlow</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script defer src="~/js/site.js" asp-append-version="true"></script>
+</head>
+<body>
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <div class="app-shell">
+        <aside class="sidebar">
+            <a class="brand" asp-controller="Home" asp-action="Index"><span class="brand-mark">A</span><span><strong>AuditFlow</strong><small>Contracting ERP</small></span></a>
+            <div class="side-caption">WORKSPACE</div>
+            <nav class="side-nav">
+                <a asp-controller="Home" asp-action="Index">▦ <span>Dashboard</span></a>
+                <a asp-controller="Projects" asp-action="Index">▧ <span>Projects</span></a>
+                <a asp-controller="Inventory" asp-action="Index">▤ <span>Project Inventory</span></a>
+                @if (User.IsInRole(AppRoles.SystemAdministrator) || User.IsInRole(AppRoles.Management) || User.IsInRole(AppRoles.PurchaseTeam)) { <a asp-controller="Inventory" asp-action="Company">▦ <span>Central Store</span></a> }
+                <a asp-controller="Indents" asp-action="Index">⇄ <span>Raised Indents</span></a>
+                <a asp-controller="Tasks" asp-action="Index">☑ <span>Pending Tasks</span></a>
+                @if (User.IsInRole(AppRoles.SystemAdministrator) || User.IsInRole(AppRoles.Management) || User.IsInRole(AppRoles.PurchaseTeam))
+                {
+                    <a asp-controller="Procurement" asp-action="Index">▣ <span>Purchase & Receipt</span></a>
+                    <a asp-controller="Suppliers" asp-action="Index">♙ <span>Suppliers</span></a>
+                }
+                @if (User.IsInRole(AppRoles.SystemAdministrator) || User.IsInRole(AppRoles.Management) || User.IsInRole(AppRoles.BillingEngineer) || User.IsInRole(AppRoles.PurchaseTeam))
+                { <a asp-controller="Customers" asp-action="Index">♧ <span>Customers</span></a> }
+                @if (User.IsInRole(AppRoles.SystemAdministrator) || User.IsInRole(AppRoles.Management) || User.IsInRole(AppRoles.BillingEngineer))
+                { <a asp-controller="Billing" asp-action="Index">₹ <span>Client Billing</span></a> }
+                <a asp-controller="Documents" asp-action="Index">▤ <span>Documents</span></a>
+                <a asp-controller="Audits" asp-action="Index">⚑ <span>Audit & Findings</span></a>
+                <a asp-controller="Reports" asp-action="Index">▥ <span>Reports</span></a>
+                @if (User.IsInRole(AppRoles.SystemAdministrator) || User.IsInRole(AppRoles.Management) || User.IsInRole(AppRoles.PurchaseTeam) || User.IsInRole(AppRoles.SiteInCharge)) { <a asp-controller="Expenses" asp-action="Index">₹ <span>Project Expenses</span></a> }
+                @if (User.IsInRole(AppRoles.SystemAdministrator) || User.IsInRole(AppRoles.Management))
+                { <a asp-controller="Masters" asp-action="Index">⚙ <span>Masters</span></a> }
+                @if (User.IsInRole(AppRoles.SystemAdministrator))
+                { <a asp-controller="Users" asp-action="Index">♙ <span>User Management</span></a><a asp-controller="Users" asp-action="Assign">⌘ <span>Project Assignments</span></a><a asp-controller="AuditTrail" asp-action="Index">◷ <span>Audit Trail</span></a> }
+            </nav>
+            <div class="sidebar-footer"><span class="status-dot"></span> Local LAN · Database connected</div>
+        </aside>
+        <main class="main-area">
+            <header class="topbar">
+                <div><span class="eyebrow">AUDITFLOW WORKSPACE</span><div class="page-title">@ViewData["Title"]</div></div>
+                <div class="userbox"><div class="avatar">@((User.Identity?.Name ?? "A").Take(1).ToUpperInvariant())</div><div class="user-meta"><strong>@User.Identity?.Name</strong><small>@AppRoles.Label(User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "")</small></div><a class="button button-light button-sm" asp-controller="Account" asp-action="Roles">Switch role</a><a class="button button-light button-sm" asp-controller="Account" asp-action="ChangePassword">Change password</a><form asp-controller="Account" asp-action="Logout" method="post"><button class="button button-outline button-sm" type="submit">Sign out</button></form></div>
+            </header>
+            <section class="content-wrap">
+                @if (TempData["Success"] is string success) { <div class="alert alert-success">@success</div> }
+                @if (TempData["Error"] is string error) { <div class="alert alert-error">@error</div> }
+                @RenderBody()
+                <footer class="page-footer">AuditFlow · Local LAN ERP · All amounts in INR unless stated otherwise</footer>
+            </section>
+        </main>
+    </div>
+}
+else
+{
+    @RenderBody()
+}
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
